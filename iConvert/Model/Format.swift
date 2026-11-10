@@ -10,8 +10,8 @@ nonisolated enum FormatCategory: String, CaseIterable, Identifiable, Sendable, C
         switch self {
         case .video: "Video"
         case .audio: "Audio"
-        case .image: "Immagini"
-        case .document: "Documenti"
+        case .image: "Images"
+        case .document: "Documents"
         }
     }
 }
@@ -84,7 +84,7 @@ nonisolated extension Format {
     static let odt = Format(id: "odt", name: "OpenDocument (ODT)", category: .document)
     static let rtf = Format(id: "rtf", name: "RTF", category: .document)
     static let html = Format(id: "html", name: "HTML", category: .document, aliases: ["htm"])
-    static let txt = Format(id: "txt", name: "Testo (TXT)", category: .document, aliases: ["text"])
+    static let txt = Format(id: "txt", name: "Plain Text (TXT)", category: .document, aliases: ["text"])
     static let md = Format(id: "md", name: "Markdown", category: .document, aliases: ["markdown", "mdown"])
     static let epub = Format(id: "epub", name: "EPUB", category: .document)
     static let tex = Format(id: "tex", name: "LaTeX", category: .document)

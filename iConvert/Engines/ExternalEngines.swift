@@ -18,10 +18,10 @@ nonisolated enum ExternalTool: String, CaseIterable, Identifiable, Sendable {
 
     var unlocks: String {
         switch self {
-        case .ffmpeg: "MP3, OGG, Opus, MKV, WebM, AVI, WMV e FLV"
-        case .pandoc: "Markdown in uscita, EPUB e LaTeX"
-        case .libreOffice: "Excel, PowerPoint e Word in PDF con immagini e tabelle"
-        case .imageMagick: "WebP in uscita e SVG in ingresso"
+        case .ffmpeg: "MP3, OGG, Opus, MKV, WebM, AVI, WMV and FLV"
+        case .pandoc: "Markdown output, EPUB and LaTeX"
+        case .libreOffice: "Excel, PowerPoint, and Word to PDF with images and tables"
+        case .imageMagick: "WebP output and SVG input"
         }
     }
 

@@ -22,16 +22,16 @@ struct FileListView: View {
 
     @ViewBuilder
     private func contextMenu(for item: QueueItem) -> some View {
-        Button("Mostra originale nel Finder") {
+        Button("Show Original in Finder") {
             NSWorkspace.shared.activateFileViewerSelecting([item.url])
         }
         if case let .done(outputs) = item.status {
-            Button("Mostra risultato nel Finder") {
+            Button("Show Result in Finder") {
                 NSWorkspace.shared.activateFileViewerSelecting(outputs)
             }
         }
         Divider()
-        Button("Togli dalla lista") { queue.remove(item) }
+        Button("Remove from List") { queue.remove(item) }
             .disabled(item.isRunning)
     }
 }
@@ -81,7 +81,7 @@ private struct FileRow: View {
                     ProgressView().progressViewStyle(.linear)
                 }
             }
-            .accessibilityLabel("Avanzamento di \(item.url.lastPathComponent)")
+            .accessibilityLabel("Progress of \(item.url.lastPathComponent)")
             .padding(.top, 2)
         case let .done(outputs):
             Label(doneDescription(outputs), systemImage: "checkmark.circle.fill")
@@ -102,14 +102,14 @@ private struct FileRow: View {
     private var unsupportedDetail: some View {
         if let tool = item.missingTool {
             HStack(spacing: 6) {
-                Text("Per questo formato serve \(tool.title).")
+                Text("This format needs \(tool.title).")
                     .foregroundStyle(.secondary)
-                Button("Come installarlo", action: showTools)
+                Button("How to install it", action: showTools)
                     .buttonStyle(.link)
             }
             .font(.callout)
         } else {
-            Text("Formato non supportato")
+            Text("Unsupported format")
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
@@ -119,7 +119,7 @@ private struct FileRow: View {
     private var trailing: some View {
         switch item.status {
         case let .done(outputs):
-            Button("Mostra") {
+            Button("Show") {
                 NSWorkspace.shared.activateFileViewerSelecting(outputs)
             }
         case .running:
@@ -133,7 +133,7 @@ private struct FileRow: View {
 
     private var targetPicker: some View {
         Picker(
-            "Converti \(item.url.lastPathComponent) in",
+            "Convert \(item.url.lastPathComponent) to",
             selection: Binding(
                 get: { queue.target(for: item) ?? item.routes[0] },
                 set: { queue.setTarget($0, for: item) }
@@ -155,8 +155,8 @@ private struct FileRow: View {
     }
 
     private func doneDescription(_ outputs: [URL]) -> String {
-        if outputs.count > 1 { return "\(outputs.count) file creati" }
-        guard let output = outputs.first else { return "Completato" }
+        if outputs.count > 1 { return "\(outputs.count) files created" }
+        guard let output = outputs.first else { return "Done" }
         let size = (try? output.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
         let formatted = ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
         return "\(output.lastPathComponent) · \(formatted)"

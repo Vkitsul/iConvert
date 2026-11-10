@@ -13,9 +13,9 @@ struct ToolsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Altri formati")
+                Text("More Formats")
                     .font(.title2.weight(.semibold))
-                Text("iConvert funziona già con ciò che è incluso in macOS. Questi strumenti gratuiti sono facoltativi e, una volta installati, vengono usati in automatico.")
+                Text("iConvert already works with what's built into macOS. These free tools are optional, and once installed they're used automatically.")
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -30,17 +30,17 @@ struct ToolsView: View {
 
             if !isHomebrewInstalled {
                 HStack(spacing: 4) {
-                    Text("I comandi richiedono Homebrew, che non è installato.")
+                    Text("These commands need Homebrew, which isn't installed.")
                         .foregroundStyle(.secondary)
-                    Link("Scopri come installarlo", destination: URL(string: "https://brew.sh/it/")!)
+                    Link("Learn how to install it", destination: URL(string: "https://brew.sh")!)
                 }
                 .font(.callout)
             }
 
             HStack {
-                Button("Ricontrolla") { queue.refreshTools() }
+                Button("Check Again") { queue.refreshTools() }
                 Spacer()
-                Button("Fine") { dismiss() }
+                Button("Done") { dismiss() }
                     .keyboardShortcut(.defaultAction)
             }
         }
@@ -60,7 +60,7 @@ private struct ToolRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
             Image(systemName: isInstalled ? "checkmark.circle.fill" : "circle")
                 .foregroundStyle(isInstalled ? AnyShapeStyle(.green) : AnyShapeStyle(.tertiary))
-                .accessibilityLabel(isInstalled ? "Installato" : "Non installato")
+                .accessibilityLabel(isInstalled ? "Installed" : "Not installed")
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(tool.title).fontWeight(.medium)
@@ -78,12 +78,12 @@ private struct ToolRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if !isInstalled {
-                Button(didCopy ? "Copiato" : "Copia") {
+                Button(didCopy ? "Copied" : "Copy") {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(tool.installCommand, forType: .string)
                     didCopy = true
                 }
-                .accessibilityLabel("Copia il comando per \(tool.title)")
+                .accessibilityLabel("Copy the command for \(tool.title)")
             }
         }
         .padding(12)

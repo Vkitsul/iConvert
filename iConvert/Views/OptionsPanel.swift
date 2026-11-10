@@ -9,7 +9,7 @@ struct OptionsPanel: View {
 
         Form {
             if !queue.presentCategories.isEmpty {
-                Section("Converti in") {
+                Section("Convert To") {
                     ForEach(queue.presentCategories) { category in
                         Picker(category.title, selection: Binding(
                             get: { queue.sharedTarget(for: category) ?? .mp4 },
@@ -22,7 +22,7 @@ struct OptionsPanel: View {
             }
 
             if queue.needsVideoOptions || queue.needsAudioBitrate || queue.needsImageQuality || queue.needsImageSize {
-                Section("Qualità") {
+                Section("Quality") {
                     if queue.needsVideoOptions {
                         Picker("Video", selection: $queue.options.videoPreset) {
                             ForEach(VideoPreset.allCases) { Text($0.title).tag($0) }
@@ -34,11 +34,11 @@ struct OptionsPanel: View {
                         }
                     }
                     if queue.needsImageQuality {
-                        LabeledContent("Immagini") {
+                        LabeledContent("Images") {
                             HStack {
                                 Slider(value: $queue.options.imageQuality, in: 0.4...1, step: 0.05)
                                     .labelsHidden()
-                                    .accessibilityLabel("Qualità immagini")
+                                    .accessibilityLabel("Image quality")
                                 Text(queue.options.imageQuality, format: .percent.precision(.fractionLength(0)))
                                     .monospacedDigit()
                                     .foregroundStyle(.secondary)
@@ -47,25 +47,25 @@ struct OptionsPanel: View {
                         }
                     }
                     if queue.needsImageSize {
-                        Picker("Lato massimo", selection: $queue.options.imageMaxDimension) {
-                            Text("Originale").tag(Int?.none)
+                        Picker("Longest side", selection: $queue.options.imageMaxDimension) {
+                            Text("Original").tag(Int?.none)
                             ForEach(ConversionOptions.imageDimensions, id: \.self) { Text("\($0) px").tag(Int?.some($0)) }
                         }
                     }
                 }
             }
 
-            Section("Salva in") {
-                Picker("Cartella", selection: destinationMode) {
-                    Text("Accanto agli originali").tag(false)
-                    Text("Cartella scelta").tag(true)
+            Section("Save To") {
+                Picker("Destination", selection: destinationMode) {
+                    Text("Next to originals").tag(false)
+                    Text("Chosen folder").tag(true)
                 }
                 .labelsHidden()
                 .pickerStyle(.radioGroup)
 
                 if case let .folder(url) = queue.destination {
                     LabeledContent {
-                        Button("Cambia…", action: chooseFolder)
+                        Button("Change…", action: chooseFolder)
                     } label: {
                         Text(url.lastPathComponent)
                             .lineLimit(1)
@@ -99,7 +99,7 @@ struct OptionsPanel: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
-        panel.prompt = "Scegli"
+        panel.prompt = "Choose"
         if panel.runModal() == .OK, let url = panel.url {
             queue.destination = .folder(url)
         }

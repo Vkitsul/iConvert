@@ -9,8 +9,8 @@ nonisolated enum VideoPreset: String, CaseIterable, Identifiable, Codable, Senda
 
     var title: String {
         switch self {
-        case .originalH264: "Originale · H.264"
-        case .originalHEVC: "Originale · HEVC"
+        case .originalH264: "Original · H.264"
+        case .originalHEVC: "Original · HEVC"
         case .uhdH264: "4K · H.264"
         case .uhdHEVC: "4K · HEVC"
         case .fullHDH264: "1080p · H.264"
@@ -82,17 +82,17 @@ nonisolated enum ConversionError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .noRoute: "Questa conversione non è disponibile."
-        case .noVideoTrack: "Il file non contiene video."
-        case .noAudioTrack: "Il file non contiene audio."
-        case .unreadableFile: "Il file è danneggiato o non si può leggere."
-        case .passwordProtected: "Il PDF è protetto da password."
-        case .noExtractableText: "Il PDF non contiene testo: probabilmente è una scansione."
-        case .incompatiblePreset: "Questa qualità non è compatibile con il formato scelto."
-        case .emptyOutput: "La conversione non ha prodotto alcun file."
-        case .encoderRejected: "macOS non riesce a creare questo formato partendo da questo audio."
+        case .noRoute: "This conversion isn't available."
+        case .noVideoTrack: "The file has no video."
+        case .noAudioTrack: "The file has no audio."
+        case .unreadableFile: "The file is damaged or can't be read."
+        case .passwordProtected: "The PDF is password protected."
+        case .noExtractableText: "The PDF has no text. It's probably a scan."
+        case .incompatiblePreset: "This quality setting doesn't work with the chosen format."
+        case .emptyOutput: "The conversion didn't produce a file."
+        case .encoderRejected: "macOS can't create this format from this audio."
         case let .toolFailed(tool, detail):
-            detail.isEmpty ? "\(tool) ha restituito un errore." : "\(tool): \(detail)"
+            detail.isEmpty ? "\(tool) reported an error." : "\(tool): \(detail)"
         }
     }
 }

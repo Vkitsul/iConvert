@@ -1,46 +1,51 @@
 # iConvert
 
-Convertitore di file per Mac: trascini file o cartelle nella finestra, scegli il formato e trovi il risultato accanto all'originale. Non sovrascrive mai un file esistente.
+A file converter for the Mac. Drop files or folders onto the window, pick a format, and the result appears next to the original. It never overwrites an existing file.
 
-## Avvio
+## Running it
 
-Apri `iConvert.xcodeproj` in Xcode e premi ⌘R. Serve macOS 15 o successivo; non servono un account sviluppatore né altre dipendenze.
+Open `iConvert.xcodeproj` in Xcode and press ⌘R. Requires macOS 15 or later. No developer account or other dependencies are needed.
 
-## Formati
+## Formats
 
-Funzionano senza installare nulla:
+Built into macOS, with nothing to install:
 
-| Tipo | Legge | Scrive |
+| Kind | Reads | Writes |
 |---|---|---|
-| Video | MP4, MOV, M4V, 3GP | MP4, MOV, M4V (H.264 o HEVC), GIF animata |
-| Audio | MP3, M4A, AAC, WAV, AIFF, FLAC, CAF, audio dei video | M4A, WAV, AIFF, FLAC, CAF |
-| Immagini | JPEG, PNG, HEIC, TIFF, GIF, BMP, WebP, AVIF, JPEG 2000, JPEG XL, ICO, TGA, PSD, RAW, pagine PDF | JPEG, PNG, HEIC, TIFF, GIF, BMP, AVIF, JPEG 2000, ICO, TGA, PSD, PDF |
-| Documenti | TXT, Markdown, HTML, RTF, DOC, DOCX, ODT, PDF | TXT, HTML, RTF, DOC, DOCX, ODT, PDF |
+| Video | MP4, MOV, M4V, 3GP | MP4, MOV, M4V (H.264 or HEVC), animated GIF |
+| Audio | MP3, M4A, AAC, WAV, AIFF, FLAC, CAF, audio from videos | M4A, WAV, AIFF, FLAC, CAF |
+| Images | JPEG, PNG, HEIC, TIFF, GIF, BMP, WebP, AVIF, JPEG 2000, JPEG XL, ICO, TGA, PSD, RAW, PDF pages | JPEG, PNG, HEIC, TIFF, GIF, BMP, AVIF, JPEG 2000, ICO, TGA, PSD, PDF |
+| Documents | TXT, Markdown, HTML, RTF, DOC, DOCX, ODT, PDF | TXT, HTML, RTF, DOC, DOCX, ODT, PDF |
 
-Strumenti facoltativi, che l'app trova da sola una volta installati (il pulsante a forma di puzzle mostra i comandi):
+Optional tools. The app finds them on its own once installed, and the puzzle-piece button shows the commands:
 
-| Strumento | Aggiunge |
+| Tool | Adds |
 |---|---|
-| FFmpeg | MP3, AAC, OGG e Opus; MKV, WebM e AVI in lettura e scrittura; WMV, FLV e MPEG in sola lettura |
-| Pandoc | Markdown in uscita, EPUB, LaTeX |
-| LibreOffice | Excel, PowerPoint, e Word in PDF con immagini e tabelle |
-| ImageMagick | WebP in uscita, SVG in ingresso |
+| FFmpeg | MP3, AAC, OGG and Opus; MKV, WebM and AVI for reading and writing; WMV, FLV and MPEG for reading |
+| Pandoc | Markdown output, EPUB, LaTeX |
+| LibreOffice | Excel, PowerPoint, and Word to PDF with images and tables |
+| ImageMagick | WebP output, SVG input |
 
-## Limiti noti
+```bash
+brew install ffmpeg pandoc imagemagick
+brew install --cask libreoffice
+```
 
-- I file OGG creati da iConvert contengono audio Opus: il FFmpeg di Homebrew non include il codificatore Vorbis.
-- Senza LibreOffice, immagini e tabelle dei documenti Word si perdono nella conversione.
-- L'audio con più di due canali viene ridotto a stereo con i convertitori integrati.
-- Il testo si estrae solo dai PDF che lo contengono: per le scansioni servirebbe l'OCR, che l'app non fa.
-- L'app non è in sandbox perché deve scrivere accanto agli originali, quindi non è adatta al Mac App Store così com'è.
+## Known limitations
+
+- OGG files made by iConvert contain Opus audio, because Homebrew's FFmpeg has no Vorbis encoder.
+- Without LibreOffice, images and tables in Word documents are lost.
+- With the built-in converters, audio with more than two channels is mixed down to stereo.
+- Text can only be extracted from PDFs that contain it. Scans would need OCR, which the app doesn't do.
+- The app isn't sandboxed, because it writes next to the originals, so it isn't suitable for the Mac App Store as is.
 
 ## Finder
 
-Oltre al trascinamento, l'app compare nel menu del tasto destro in **Apri con** e in **Azioni rapide/Servizi → Converti con iConvert**.
+Besides drag and drop, the app appears in the right-click menu under **Open With** and under **Quick Actions/Services → Convert with iConvert**.
 
-## Struttura
+## Project layout
 
-- `iConvert/Model`: formati, opzioni e coda delle conversioni
-- `iConvert/Engines`: un convertitore per ogni motore. `EngineRegistry` sceglie quale usare
-- `iConvert/Views`: interfaccia SwiftUI
-- `iConvertTests`: test che creano file veri e li convertono con i codificatori di sistema (⌘U in Xcode)
+- `iConvert/Model`: formats, options and the conversion queue
+- `iConvert/Engines`: one converter per engine. `EngineRegistry` picks which one to use
+- `iConvert/Views`: SwiftUI interface
+- `iConvertTests`: tests that build real files and convert them with the system encoders and installed tools (⌘U in Xcode)

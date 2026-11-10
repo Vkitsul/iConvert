@@ -132,10 +132,10 @@ extension MediaTests { @Suite struct AudioConversionTests {
 
     @Test func `a real spoken voice memo converts`() async throws {
         let sandbox = try Sandbox()
-        let source = sandbox.url("voce.aiff")
+        let source = sandbox.url("voice.aiff")
         let say = Process()
         say.executableURL = URL(filePath: "/usr/bin/say")
-        say.arguments = ["-o", source.path, "prova"]
+        say.arguments = ["-o", source.path, "testing"]
         try say.run()
         say.waitUntilExit()
         let output = try #require(try await sandbox.convert(source, to: .m4a).first)
@@ -249,17 +249,17 @@ extension MediaTests { @Suite struct VideoConversionTests {
 
 @Suite struct DocumentConversionTests {
     private static let markdown = """
-    # Titolo perché
+    # Café title
 
-    Un paragrafo con **grassetto**, *corsivo* e `codice`.
+    A paragraph with **bold**, *italic* and `code`.
 
-    - primo
-    - secondo
+    - first
+    - second
 
-    1. uno
-    2. due
+    1. one
+    2. two
 
-    > una citazione
+    > a quote
 
     | A | B |
     |---|---|
@@ -269,21 +269,21 @@ extension MediaTests { @Suite struct VideoConversionTests {
     let a = 1 < 2
     ```
 
-    [un link](https://example.com)
+    [a link](https://example.com)
     """
 
     @Test func `Markdown renders to proper HTML`() throws {
         let html = try MarkdownRenderer.html(from: Self.markdown, title: "T")
-        #expect(html.contains("<h1>Titolo perché</h1>"))
-        #expect(html.contains("<strong>grassetto</strong>"))
-        #expect(html.contains("<em>corsivo</em>"))
-        #expect(html.contains("<code>codice</code>"))
-        #expect(html.contains("<li><p>primo</p>") || html.contains("<li>primo"))
+        #expect(html.contains("<h1>Café title</h1>"))
+        #expect(html.contains("<strong>bold</strong>"))
+        #expect(html.contains("<em>italic</em>"))
+        #expect(html.contains("<code>code</code>"))
+        #expect(html.contains("<li><p>first</p>") || html.contains("<li>first"))
         #expect(html.contains("<ol>"))
         #expect(html.contains("<blockquote>"))
         #expect(html.contains("<table>"))
         #expect(html.contains("let a = 1 &lt; 2"))
-        #expect(html.contains("<a href=\"https://example.com\">un link</a>"))
+        #expect(html.contains("<a href=\"https://example.com\">a link</a>"))
     }
 
     @Test func `HTML in file names and text is escaped`() throws {
@@ -309,35 +309,35 @@ extension MediaTests { @Suite struct VideoConversionTests {
             let back = try await sandbox.convert(output, to: .txt, destination: try sandboxSubfolder(sandbox))
             text = try String(contentsOf: try #require(back.first), encoding: .utf8)
         }
-        #expect(text.contains("Titolo perché"))
-        #expect(text.contains("grassetto"))
+        #expect(text.contains("Café title"))
+        #expect(text.contains("bold"))
     }
 
     @Test func `plain text with accents survives to PDF`() async throws {
         let sandbox = try Sandbox()
-        let source = try sandbox.write("È già così, perché no? Più caffè.", to: "plain.txt")
+        let source = try sandbox.write("Déjà vu: a naïve café façade.", to: "plain.txt")
         let output = try #require(try await sandbox.convert(source, to: .pdf).first)
-        #expect(try #require(PDFDocument(url: output)?.string).contains("perché"))
+        #expect(try #require(PDFDocument(url: output)?.string).contains("naïve café"))
     }
 
     @Test func `long text flows onto several PDF pages`() async throws {
         let sandbox = try Sandbox()
-        let line = "Questa è una riga di prova piuttosto lunga per riempire la pagina.\n"
+        let line = "This is a fairly long café test line, written to fill up the page.\n"
         let source = try sandbox.write(String(repeating: line, count: 400), to: "long.txt")
         let output = try #require(try await sandbox.convert(source, to: .pdf).first)
         let document = try #require(PDFDocument(url: output))
         #expect(document.pageCount > 1)
         // Nothing lost at page boundaries.
         let text = try #require(document.string)
-        #expect(text.components(separatedBy: "Questa è una riga").count == 401)
+        #expect(text.components(separatedBy: "This is a fairly long café").count == 401)
     }
 
     @Test func `text can be taken out of a PDF`() async throws {
         let sandbox = try Sandbox()
-        let source = try sandbox.write("Testo dentro al PDF, perché sì.", to: "in.txt")
+        let source = try sandbox.write("Text inside the PDF, déjà vu.", to: "in.txt")
         let pdf = try #require(try await sandbox.convert(source, to: .pdf).first)
         let output = try #require(try await sandbox.convert(pdf, to: .txt, destination: try sandboxSubfolder(sandbox)).first)
-        #expect(try String(contentsOf: output, encoding: .utf8).contains("perché sì"))
+        #expect(try String(contentsOf: output, encoding: .utf8).contains("déjà vu"))
     }
 
     @Test func `a scanned PDF explains why it has no text`() async throws {
@@ -393,9 +393,9 @@ extension MediaTests { @Suite struct VideoConversionTests {
 
     @Test func `odd file names work`() async throws {
         let sandbox = try Sandbox()
-        let source = try sandbox.write("ciao", to: "-strano nome (1) è'\"$.txt")
+        let source = try sandbox.write("hello", to: "-odd name (1) é'\"$.txt")
         let output = try #require(try await sandbox.convert(source, to: .html).first)
-        #expect(output.lastPathComponent == "-strano nome (1) è'\"$.html")
+        #expect(output.lastPathComponent == "-odd name (1) é'\"$.html")
     }
 }
 
@@ -525,7 +525,7 @@ extension MediaTests { @Suite @MainActor struct QueueTests {
         let queue = makeQueue()
         let image = try sandbox.png()
         let tone = try sandbox.tone()
-        let note = try sandbox.write("# Ciao", to: "note.md")
+        let note = try sandbox.write("# Hello", to: "note.md")
         let movie = try await sandbox.movie()
         let broken = try sandbox.write("nope", to: "broken.jpg")
         await queue.addAndWait([image, tone, note, movie, broken])
