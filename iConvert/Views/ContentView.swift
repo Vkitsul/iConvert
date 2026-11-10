@@ -44,21 +44,21 @@ struct ContentView: View {
         }
         .toolbar {
             ToolbarItemGroup {
-                Button("Aggiungi file", systemImage: "plus") {
+                Button("Add Files", systemImage: "plus") {
                     queue.isImporterPresented = true
                 }
-                .help("Aggiungi file o cartelle")
+                .help("Add files or folders")
 
-                Button("Altri formati", systemImage: "puzzlepiece.extension") {
+                Button("More Formats", systemImage: "puzzlepiece.extension") {
                     isToolsPresented = true
                 }
-                .help("Strumenti facoltativi che aggiungono altri formati")
+                .help("Optional tools that add more formats")
 
                 if !queue.items.isEmpty {
-                    Button("Opzioni", systemImage: "sidebar.trailing") {
+                    Button("Options", systemImage: "sidebar.trailing") {
                         isInspectorVisible.toggle()
                     }
-                    .help("Mostra o nascondi le opzioni")
+                    .help("Show or hide options")
                 }
             }
         }
@@ -87,12 +87,12 @@ private struct EmptyDropView: View {
             Image(systemName: "arrow.down.doc")
                 .font(.system(size: 44, weight: .light))
                 .foregroundStyle(isTargeted ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-            Text("Trascina qui file o cartelle")
+            Text("Drop files or folders here")
                 .font(.title2.weight(.medium))
-            Text("Video, audio, immagini e documenti. I file convertiti finiscono accanto agli originali.")
+            Text("Video, audio, images and documents. Converted files are saved next to the originals.")
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-            Button("Scegli file…", action: choose)
+            Button("Choose Files…", action: choose)
                 .controlSize(.large)
                 .padding(.top, 4)
         }
@@ -117,7 +117,7 @@ private struct ActionBar: View {
             if queue.isRunning {
                 ProgressView(value: queue.overallProgress)
                     .frame(maxWidth: 220)
-                    .accessibilityLabel("Avanzamento totale")
+                    .accessibilityLabel("Overall progress")
             }
             Text(summary)
                 .font(.callout)
@@ -128,11 +128,11 @@ private struct ActionBar: View {
             Spacer(minLength: 8)
 
             if queue.isRunning {
-                Button("Interrompi", role: .cancel) { queue.stop() }
+                Button("Stop", role: .cancel) { queue.stop() }
                     .controlSize(.large)
             } else {
                 if queue.completedCount > 0 {
-                    Button("Togli completati") { queue.removeCompleted() }
+                    Button("Clear Completed") { queue.removeCompleted() }
                         .controlSize(.large)
                 }
                 Button(convertTitle) { queue.start() }
@@ -150,14 +150,15 @@ private struct ActionBar: View {
 
     private var summary: String {
         let total = queue.items.count
-        let files = total == 1 ? "1 file" : "\(total) file"
+        let files = total == 1 ? "1 file" : "\(total) files"
         let done = queue.completedCount
         guard done > 0 else { return files }
-        return done == 1 ? "\(files), 1 completato" : "\(files), \(done) completati"
+        return "\(files), \(done) done"
     }
 
     private var convertTitle: String {
         let count = queue.runnableCount
-        return count == 0 ? "Converti" : "Converti \(count) file"
+        if count == 0 { return "Convert" }
+        return count == 1 ? "Convert 1 File" : "Convert \(count) Files"
     }
 }

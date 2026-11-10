@@ -13,7 +13,7 @@ struct iConvertApp: App {
         .defaultSize(width: 920, height: 580)
         .commands {
             CommandGroup(replacing: .newItem) {
-                Button("Aggiungi file…") { appDelegate.queue.isImporterPresented = true }
+                Button("Add Files…") { appDelegate.queue.isImporterPresented = true }
                     .keyboardShortcut("o")
             }
         }
@@ -36,7 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 
-    /// Finder's "Converti con iConvert" service. The name matches `NSMessage` in the Info.plist.
+    /// Finder's "Convert with iConvert" service. The name matches `NSMessage` in the Info.plist.
     @objc func convertFiles(
         _ pasteboard: NSPasteboard,
         userData: String,

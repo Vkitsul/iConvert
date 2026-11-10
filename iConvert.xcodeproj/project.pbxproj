@@ -140,10 +140,10 @@
 				};
 			};
 			buildConfigurationList = A10000000000000000000030 /* Build configuration list for PBXProject "iConvert" */;
-			developmentRegion = it;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
-				it,
+				en,
 				Base,
 			);
 			mainGroup = A10000000000000000000007;

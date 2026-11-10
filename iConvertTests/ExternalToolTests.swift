@@ -203,7 +203,7 @@ extension MediaTests {
 
         @Test func `a corrupt file gives a readable error`() async throws {
             let sandbox = try Sandbox()
-            let source = try sandbox.write("non è un video", to: "broken.mkv")
+            let source = try sandbox.write("this is not a video", to: "broken.mkv")
             do {
                 _ = try await sandbox.convertWithTools(source, to: .mp4)
                 Issue.record("Expected a failure")
@@ -222,7 +222,7 @@ extension MediaTests {
             }
         }
 
-        @Test(arguments: ["sp azi è'\"$ (1).mkv", "-trattino.mkv", "cento%d [1].mkv"])
+        @Test(arguments: ["sp aces é'\"$ (1).mkv", "-dash.mkv", "hundred%d [1].mkv"])
         func `odd file names reach FFmpeg intact`(name: String) async throws {
             let sandbox = try Sandbox()
             let source = try await sandbox.testVideo("plain.mkv")
@@ -234,7 +234,7 @@ extension MediaTests {
     }
 
     @Suite(.enabled(if: tools[.pandoc] != nil)) struct PandocTests {
-        private static let markdown = "# Titolo perché\n\nUn **paragrafo** con accenti.\n\n- primo\n- secondo\n"
+        private static let markdown = "# Café title\n\nA **paragraph** with accents.\n\n- first\n- second\n"
 
         @Test(arguments: [Format.docx, .html, .epub, .tex, .odt, .rtf, .txt])
         func `Markdown converts and the words survive`(target: Format) async throws {
@@ -243,7 +243,7 @@ extension MediaTests {
             let output = try await sandbox.convertWithTools(source, to: target)
             #expect(output.lastPathComponent == "note.\(target.id)")
             let back = try await sandbox.convertWithTools(output, to: target == .md ? .html : .md)
-            #expect(try text(back).contains("paragrafo"))
+            #expect(try text(back).contains("paragraph"))
         }
 
         @Test(arguments: [Format.docx, .html, .epub, .odt, .tex])
@@ -253,15 +253,15 @@ extension MediaTests {
             let middle = try await sandbox.convertWithTools(source, to: via)
             let output = try await sandbox.convertWithTools(middle, to: .md)
             let result = try text(output)
-            #expect(result.contains("perché"))
-            #expect(result.contains("**paragrafo**") || result.contains("__paragrafo__"))
+            #expect(result.contains("Café"))
+            #expect(result.contains("**paragraph**") || result.contains("__paragraph__"))
         }
 
         @Test func `an image beside the Markdown file lands inside the DOCX`() async throws {
             let sandbox = try Sandbox()
-            _ = try sandbox.png("foto.png")
-            let source = try sandbox.write("# Con foto\n\n![una foto](foto.png)\n", to: "note.md")
-            let plain = try await sandbox.convertWithTools(try sandbox.write("# Senza foto\n", to: "bare.md"), to: .docx)
+            _ = try sandbox.png("photo.png")
+            let source = try sandbox.write("# With photo\n\n![a photo](photo.png)\n", to: "note.md")
+            let plain = try await sandbox.convertWithTools(try sandbox.write("# Without photo\n", to: "bare.md"), to: .docx)
             let output = try await sandbox.convertWithTools(source, to: .docx)
             let withImage = try #require(try output.resourceValues(forKeys: [.fileSizeKey]).fileSize)
             let without = try #require(try plain.resourceValues(forKeys: [.fileSizeKey]).fileSize)
@@ -270,7 +270,7 @@ extension MediaTests {
 
         @Test func `a corrupt DOCX gives a readable error`() async throws {
             let sandbox = try Sandbox()
-            let source = try sandbox.write("non è un docx", to: "broken.docx")
+            let source = try sandbox.write("this is not a docx", to: "broken.docx")
             await #expect(throws: ConversionError.self) {
                 _ = try await sandbox.convertWithTools(source, to: .md)
             }
@@ -278,19 +278,19 @@ extension MediaTests {
 
         @Test func `odd file names reach Pandoc intact`() async throws {
             let sandbox = try Sandbox()
-            let source = try sandbox.write(Self.markdown, to: "-sp azi è'\"$ %d [1].md")
+            let source = try sandbox.write(Self.markdown, to: "-sp aces é'\"$ %d [1].md")
             let output = try await sandbox.convertWithTools(source, to: .docx)
-            #expect(output.lastPathComponent == "-sp azi è'\"$ %d [1].docx")
+            #expect(output.lastPathComponent == "-sp aces é'\"$ %d [1].docx")
         }
     }
 
     @Suite(.enabled(if: tools[.libreOffice] != nil)) struct LibreOfficeTests {
-        private static let csv = "Nome,Città\nAndrea,Forlì\nNicolò,Cantù\n"
+        private static let csv = "Name,City\nZoë,Zürich\nRenée,Malmö\n"
 
         @Test(arguments: [Format.xlsx, .xls, .ods])
         func `a spreadsheet converts and comes back with accents intact`(target: Format) async throws {
             let sandbox = try Sandbox()
-            let source = try sandbox.write(Self.csv, to: "dati.csv")
+            let source = try sandbox.write(Self.csv, to: "data.csv")
             let sheet = try await sandbox.convertWithTools(source, to: target)
             let backFolder = sandbox.url("back")
             try FileManager.default.createDirectory(at: backFolder, withIntermediateDirectories: true)
@@ -298,39 +298,39 @@ extension MediaTests {
             try FileManager.default.moveItem(at: sheet, to: copy)
             let back = try await Sandbox.convertInPlace(copy, to: .csv)
             let result = try text(back)
-            #expect(result.contains("Forlì"))
-            #expect(result.contains("Nicolò"))
+            #expect(result.contains("Zürich"))
+            #expect(result.contains("Renée"))
         }
 
         @Test func `an Excel file becomes a PDF`() async throws {
             let sandbox = try Sandbox()
-            let xlsx = try await sandbox.convertWithTools(try sandbox.write(Self.csv, to: "dati.csv"), to: .xlsx)
+            let xlsx = try await sandbox.convertWithTools(try sandbox.write(Self.csv, to: "data.csv"), to: .xlsx)
             let pdf = try await sandbox.convertWithTools(xlsx, to: .pdf)
-            #expect(try pdfText(pdf).contains("Cantù"))
+            #expect(try pdfText(pdf).contains("Malmö"))
         }
 
         @Test func `an Italian CSV separated by semicolons splits into columns`() async throws {
             let sandbox = try Sandbox()
-            let source = try sandbox.write("Nome;Città\nAndrea;Forlì\n", to: "dati.csv")
+            let source = try sandbox.write("Name;City\nZoë;Zürich\n", to: "data.csv")
             let ods = try await sandbox.convertWithTools(source, to: .ods)
             let folder = sandbox.url("back")
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
             let copy = folder.appending(path: ods.lastPathComponent)
             try FileManager.default.moveItem(at: ods, to: copy)
             let back = try await Sandbox.convertInPlace(copy, to: .csv)
-            #expect(try text(back).contains("Andrea,Forlì"))
+            #expect(try text(back).contains("Zoë,Zürich"))
         }
 
         @Test func `a DOCX with a picture keeps it in the PDF`() async throws {
             let sandbox = try Sandbox()
-            _ = try sandbox.png("foto.png", width: 800, height: 400)
-            let md = try sandbox.write("# Relazione perché\n\n![foto](foto.png)\n", to: "doc.md")
+            _ = try sandbox.png("photo.png", width: 800, height: 400)
+            let md = try sandbox.write("# Café report\n\n![photo](photo.png)\n", to: "doc.md")
             let docx = try await sandbox.convertWithTools(md, to: .docx)
             let pdf = try await sandbox.convertWithTools(docx, to: .pdf)
-            #expect(try pdfText(pdf).contains("Relazione perché"))
+            #expect(try pdfText(pdf).contains("Café report"))
             let withPicture = try #require(try pdf.resourceValues(forKeys: [.fileSizeKey]).fileSize)
 
-            let bareDocx = try await sandbox.convertWithTools(try sandbox.write("# Relazione perché\n", to: "bare.md"), to: .docx)
+            let bareDocx = try await sandbox.convertWithTools(try sandbox.write("# Café report\n", to: "bare.md"), to: .docx)
             let barePDF = try await sandbox.convertWithTools(bareDocx, to: .pdf)
             let bare = try #require(try barePDF.resourceValues(forKeys: [.fileSizeKey]).fileSize)
             #expect(withPicture > bare)
@@ -339,7 +339,7 @@ extension MediaTests {
         @Test(arguments: [Format.odt, .doc, .rtf])
         func `Word converts to the other word processor formats`(target: Format) async throws {
             let sandbox = try Sandbox()
-            let docx = try await sandbox.convertWithTools(try sandbox.write("# Ciao perché\n", to: "doc.md"), to: .docx)
+            let docx = try await sandbox.convertWithTools(try sandbox.write("# Hello café\n", to: "doc.md"), to: .docx)
             let output = try await sandbox.convertWithTools(docx, to: target)
             #expect(output.pathExtension == target.id)
         }
@@ -368,27 +368,27 @@ extension MediaTests {
             } else {
                 let output = try await Sandbox.convertInPlace(copy, to: target)
                 #expect(output.pathExtension == target.id)
-                if target == .pdf { #expect(try pdfText(output).contains("Diapositiva perché")) }
+                if target == .pdf { #expect(try pdfText(output).contains("Café slide")) }
             }
         }
 
         @Test func `paths with spaces and accents work, and two can run at once`() async throws {
             let sandbox = try Sandbox()
-            let folder = sandbox.url("Cartella con spazi è")
+            let folder = sandbox.url("Folder with spaces é")
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            let first = folder.appending(path: "dati uno.csv")
-            let second = folder.appending(path: "dati due.csv")
+            let first = folder.appending(path: "data one.csv")
+            let second = folder.appending(path: "data two.csv")
             try Self.csv.write(to: first, atomically: true, encoding: .utf8)
             try Self.csv.write(to: second, atomically: true, encoding: .utf8)
             async let one = Sandbox.convertInPlace(first, to: .pdf)
             async let two = Sandbox.convertInPlace(second, to: .pdf)
             let results = try await [one, two]
-            for result in results { #expect(try pdfText(result).contains("Forlì")) }
+            for result in results { #expect(try pdfText(result).contains("Zürich")) }
         }
 
         @Test func `a corrupt spreadsheet fails instead of hanging`() async throws {
             let sandbox = try Sandbox()
-            let source = try sandbox.write("non è un excel", to: "broken.xlsx")
+            let source = try sandbox.write("this is not a spreadsheet", to: "broken.xlsx")
             do {
                 let output = try await sandbox.convertWithTools(source, to: .pdf)
                 // LibreOffice may read garbage as text, which still has to produce a real PDF.
@@ -429,14 +429,14 @@ extension MediaTests {
         @Test(arguments: [Format.png, .jpg, .webp, .tiff, .gif, .bmp])
         func `an SVG renders to bitmap formats`(target: Format) async throws {
             let sandbox = try Sandbox()
-            let source = try sandbox.write(Self.svg, to: "disegno.svg")
+            let source = try sandbox.write(Self.svg, to: "drawing.svg")
             let output = try await sandbox.convertWithTools(source, to: target)
             #expect(pixelSize(output)?.width == 300)
         }
 
         @Test func `an SVG's empty background is white in a JPEG`() async throws {
             let sandbox = try Sandbox()
-            let source = try sandbox.write(Self.svg, to: "disegno.svg")
+            let source = try sandbox.write(Self.svg, to: "drawing.svg")
             let output = try await sandbox.convertWithTools(source, to: .jpg)
             let cgSource = try #require(imageSource(output))
             let image = try #require(CGImageSourceCreateImageAtIndex(cgSource, 0, nil))
@@ -458,7 +458,7 @@ extension MediaTests {
             #expect(pixelSize(output)?.width == 100)
         }
 
-        @Test(arguments: ["cento%d.png", "foto [1].png", "-sp azi è'\"$.png"])
+        @Test(arguments: ["hundred%d.png", "photo [1].png", "-sp aces é'\"$.png"])
         func `file names that look like ImageMagick commands stay literal`(name: String) async throws {
             let sandbox = try Sandbox()
             let source = try sandbox.png(name)
@@ -469,7 +469,7 @@ extension MediaTests {
 
         @Test func `a corrupt SVG gives a readable error and no file`() async throws {
             let sandbox = try Sandbox()
-            let source = try sandbox.write("<svg><non chiuso", to: "broken.svg")
+            let source = try sandbox.write("<svg><unclosed", to: "broken.svg")
             do {
                 _ = try await sandbox.convertWithTools(source, to: .png)
             } catch {
@@ -488,8 +488,8 @@ extension MediaTests {
 
             let wav = try sandbox.tone()
             let mkv = try await sandbox.testVideo("film.mkv")
-            let md = try sandbox.write("# Ciao\n", to: "note.md")
-            let csv = try sandbox.write("a,b\n1,2\n", to: "dati.csv")
+            let md = try sandbox.write("# Hello\n", to: "note.md")
+            let csv = try sandbox.write("a,b\n1,2\n", to: "data.csv")
             let svg = try sandbox.write(#"<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"/>"#, to: "d.svg")
             await queue.addAndWait([wav, mkv, md, csv, svg])
 
@@ -509,7 +509,7 @@ extension MediaTests {
                 return nil
             }
             #expect(failures.isEmpty, "\(failures)")
-            for file in ["tone.mp3", "film.webm", "note.epub", "dati.xlsx", "d.webp"] {
+            for file in ["tone.mp3", "film.webm", "note.epub", "data.xlsx", "d.webp"] {
                 #expect(FileManager.default.fileExists(atPath: sandbox.url(file).path), "\(file)")
             }
         }
@@ -539,9 +539,9 @@ extension Sandbox {
           xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
           office:version="1.2" office:mimetype="application/vnd.oasis.opendocument.presentation">
         <office:body><office:presentation>
-        <draw:page draw:name="uno">
+        <draw:page draw:name="one">
         <draw:frame svg:x="2cm" svg:y="2cm" svg:width="20cm" svg:height="5cm">
-        <draw:text-box><text:p>Diapositiva perché</text:p></draw:text-box>
+        <draw:text-box><text:p>Café slide</text:p></draw:text-box>
         </draw:frame></draw:page>
         </office:presentation></office:body></office:document>
         """, to: "slides.fodp")

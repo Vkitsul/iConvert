@@ -6,7 +6,7 @@
 	<array>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>File da convertire</string>
+			<string>Files to Convert</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
@@ -24,7 +24,7 @@
 			<key>NSMenuItem</key>
 			<dict>
 				<key>default</key>
-				<string>Converti con iConvert</string>
+				<string>Convert with iConvert</string>
 			</dict>
 			<key>NSMessage</key>
 			<string>convertFiles</string>
