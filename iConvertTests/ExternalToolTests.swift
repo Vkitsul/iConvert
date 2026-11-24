@@ -126,6 +126,52 @@ extension MediaTests {
             #expect(try await !asset.loadTracks(withMediaType: .audio).isEmpty)
         }
 
+        /// Hash of the encoded video packets, which only match if nothing was encoded again.
+        private func videoPacketHash(_ url: URL) async throws -> String {
+            try await ProcessRunner.run(try #require(tools[.ffmpeg]), [
+                "-hide_banner", "-loglevel", "error", "-i", url.path, "-map", "0:v:0", "-c", "copy", "-f", "md5", "-",
+            ], toolName: "FFmpeg hash").trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
+        @Test(arguments: [Format.mp4, .mov, .m4v])
+        func `an H.264 MKV at original quality is rewrapped, not re-encoded`(target: Format) async throws {
+            let sandbox = try Sandbox()
+            let source = try await sandbox.testVideo("in.mkv", extra: ["-c:v", "libx264", "-c:a", "aac"])
+            let output = try await sandbox.convertWithTools(source, to: target)
+            #expect(try await videoPacketHash(output) == videoPacketHash(source))
+            #expect(try await probe(output, stream: "a:0")["codec_name"] == "aac")
+        }
+
+        @Test func `a smaller size or another codec still re-encodes`() async throws {
+            let sandbox = try Sandbox()
+            let source = try await sandbox.testVideo("in.mkv", size: "1280x720", extra: ["-c:v", "libx264", "-c:a", "aac"])
+            var smaller = ConversionOptions()
+            smaller.videoPreset = .sdH264
+            var hevc = ConversionOptions()
+            hevc.videoPreset = .originalHEVC
+            let resized = try await probe(try await sandbox.convertWithTools(source, to: .mp4, options: smaller), stream: "v:0")
+            let recoded = try await probe(try await sandbox.convertWithTools(source, to: .mkv, options: hevc), stream: "v:0")
+            #expect(resized["height"] == "480")
+            #expect(recoded["codec_name"] == "hevc")
+        }
+
+        @Test func `copying keeps the codec and skips the scaler`() {
+            let arguments = FFmpegEngine.arguments(
+                source: URL(filePath: "/in.mkv"), target: .mp4, output: URL(filePath: "/out.mp4"),
+                options: ConversionOptions(), copyStreams: true
+            )
+            #expect(arguments.contains("copy"))
+            #expect(!arguments.contains("-vf"))
+            #expect(!arguments.contains("libx264"))
+        }
+
+        @Test func `a MOV at original quality is rewrapped by macOS, not re-encoded`() async throws {
+            let sandbox = try Sandbox()
+            let source = try await sandbox.movie()
+            let output = try await sandbox.convert(source, to: .mp4)
+            #expect(try await videoPacketHash(#require(output.first)) == videoPacketHash(source))
+        }
+
         @Test func `an MKV can give up just its audio`() async throws {
             let sandbox = try Sandbox()
             let output = try await sandbox.convertWithTools(try await sandbox.testVideo("in.mkv"), to: .wav)
@@ -300,6 +346,18 @@ extension MediaTests {
             let result = try text(back)
             #expect(result.contains("Zürich"))
             #expect(result.contains("Renée"))
+        }
+
+        @Test func `LibreOffice profiles are reused, not rebuilt for every file`() async throws {
+            let sandbox = try Sandbox()
+            let folder = LibreOfficeEngine.profilesFolder
+            let count = { (try? FileManager.default.contentsOfDirectory(atPath: folder.path).count) ?? 0 }
+            let before = count()
+            for index in 0..<3 {
+                let source = try sandbox.write(Self.csv, to: "data\(index).csv")
+                #expect(try pdfText(try await sandbox.convertWithTools(source, to: .pdf)).contains("Zürich"))
+            }
+            #expect(count() == max(before, 1))
         }
 
         @Test func `an Excel file becomes a PDF`() async throws {

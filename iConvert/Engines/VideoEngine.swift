@@ -6,7 +6,9 @@ import UniformTypeIdentifiers
 nonisolated struct VideoEngine: ConversionEngine {
     private static let readable: Set<Format> = [.mp4, .mov, .m4v, .threeGP]
     private static let gifFramesPerSecond = 12.0
-    private static let gifMaxFrames = 1800.0
+    // shortcut: ImageIO keeps every GIF frame uncompressed until the end (about 1 MB each at 640 px),
+    // so longer videos get fewer frames per second; stream frames to an encoder if long GIFs matter.
+    private static let gifMaxFrames = 480.0
     private static let gifDefaultEdge = 640
 
     func targets(from source: Format) -> Set<Format> {
@@ -36,7 +38,16 @@ nonisolated struct VideoEngine: ConversionEngine {
         case .m4v: .m4v
         default: .mp4
         }
-        let preset = job.options.videoPreset.exportPreset
+        var preset = job.options.videoPreset.exportPreset
+        // Already in the requested codec and kept at full size: rewrap without encoding again.
+        let wanted = job.options.videoPreset.usesHEVC ? kCMVideoCodecType_HEVC : kCMVideoCodecType_H264
+        if job.options.videoPreset.maxHeight == nil,
+           try await Self.videoCodec(of: asset) == wanted,
+           await AVAssetExportSession.compatibility(
+               ofExportPreset: AVAssetExportPresetPassthrough, with: asset, outputFileType: fileType
+           ) {
+            preset = AVAssetExportPresetPassthrough
+        }
         guard await AVAssetExportSession.compatibility(ofExportPreset: preset, with: asset, outputFileType: fileType),
               let session = AVAssetExportSession(asset: asset, presetName: preset)
         else { throw ConversionError.incompatiblePreset }
@@ -53,6 +64,12 @@ nonisolated struct VideoEngine: ConversionEngine {
         }
         defer { monitor.cancel() }
         try await session.export(to: job.primaryOutput, as: fileType)
+    }
+
+    private static func videoCodec(of asset: AVURLAsset) async throws -> CMVideoCodecType? {
+        let track = try await asset.loadTracks(withMediaType: .video).first
+        let description = try await track?.load(.formatDescriptions).first
+        return description.map(CMFormatDescriptionGetMediaSubType)
     }
 
     private func writeGIF(

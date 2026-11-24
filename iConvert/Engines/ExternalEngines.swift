@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// Optional command-line tools that widen the set of formats. Found at runtime, because an
 /// app opened from Finder doesn't inherit the shell's PATH.
@@ -80,9 +81,11 @@ nonisolated struct FFmpegEngine: ConversionEngine {
 
     func convert(_ job: ConversionJob, progress: @escaping @Sendable (Double) -> Void) async throws -> [URL] {
         guard let executable else { throw ConversionError.noRoute }
-        let duration = await Self.duration(of: job.source, ffmpeg: executable)
+        let probe = await Self.probe(job.source, ffmpeg: executable)
+        let duration = probe?.duration
         let arguments = Self.arguments(
-            source: job.source, target: job.target, output: job.primaryOutput, options: job.options
+            source: job.source, target: job.target, output: job.primaryOutput, options: job.options,
+            copyStreams: Self.canCopyStreams(probe, to: job.target, options: job.options)
         )
         try await ProcessRunner.run(executable, arguments, toolName: "FFmpeg") { line in
             guard let duration, duration > 0, line.hasPrefix("out_time_us="),
@@ -93,17 +96,50 @@ nonisolated struct FFmpegEngine: ConversionEngine {
         return [job.primaryOutput]
     }
 
-    private static func duration(of source: URL, ffmpeg: URL) async -> Double? {
-        let probe = ffmpeg.deletingLastPathComponent().appending(path: "ffprobe")
-        let output = try? await ProcessRunner.run(
-            probe,
-            ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", source.path],
-            toolName: "ffprobe"
-        )
-        return output.flatMap { Double($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+    /// What ffprobe reports about a file, in its own JSON field names.
+    struct Probe: Decodable, Sendable {
+        struct Stream: Decodable, Sendable {
+            let codec_type: String?
+            let codec_name: String?
+        }
+        struct Container: Decodable, Sendable {
+            let duration: String?
+        }
+        let streams: [Stream]
+        let format: Container?
+
+        var duration: Double? { format?.duration.flatMap(Double.init) }
+
+        func codecs(_ type: String) -> [String] {
+            streams.filter { $0.codec_type == type }.compactMap(\.codec_name)
+        }
     }
 
-    static func arguments(source: URL, target: Format, output: URL, options: ConversionOptions) -> [String] {
+    private static func probe(_ source: URL, ffmpeg: URL) async -> Probe? {
+        let ffprobe = ffmpeg.deletingLastPathComponent().appending(path: "ffprobe")
+        let output = try? await ProcessRunner.run(ffprobe, [
+            "-v", "error", "-show_entries", "format=duration:stream=codec_type,codec_name", "-of", "json", source.path,
+        ], toolName: "ffprobe")
+        return output.flatMap { try? JSONDecoder().decode(Probe.self, from: Data($0.utf8)) }
+    }
+
+    /// Video already in the requested codec, kept at full size, only needs a new container:
+    /// lossless, and about 50 times faster than encoding it again.
+    static func canCopyStreams(_ probe: Probe?, to target: Format, options: ConversionOptions) -> Bool {
+        guard let probe, options.videoPreset.maxHeight == nil, [Format.mp4, .mov, .m4v, .mkv].contains(target) else {
+            return false
+        }
+        let wanted = options.videoPreset.usesHEVC ? "hevc" : "h264"
+        return probe.codecs("video") == [wanted] && probe.codecs("audio").allSatisfy { $0 == "aac" }
+    }
+
+    static func arguments(
+        source: URL,
+        target: Format,
+        output: URL,
+        options: ConversionOptions,
+        copyStreams: Bool = false
+    ) -> [String] {
         let bitrate = "\(options.audioBitrate)k"
         let aac = ["-c:a", "aac", "-b:a", bitrate]
         var codec: [String]
@@ -128,10 +164,15 @@ nonisolated struct FFmpegEngine: ConversionEngine {
         case .avi:
             codec = videoFilter(options) + ["-c:v", "mpeg4", "-q:v", "4", "-c:a", "libmp3lame", "-b:a", bitrate]
         default:
-            let video = options.videoPreset.usesHEVC
-                ? ["-c:v", "libx265", "-crf", "24", "-tag:v", "hvc1"]
-                : ["-c:v", "libx264", "-crf", "20"]
-            codec = videoFilter(options) + video + ["-preset", "medium", "-pix_fmt", "yuv420p"] + aac
+            let hevcTag = options.videoPreset.usesHEVC ? ["-tag:v", "hvc1"] : []
+            if copyStreams {
+                codec = ["-c:v", "copy", "-c:a", "copy"] + hevcTag
+            } else {
+                let encoder = options.videoPreset.usesHEVC
+                    ? ["-c:v", "libx265", "-crf", "24"]
+                    : ["-c:v", "libx264", "-crf", "20"]
+                codec = videoFilter(options) + encoder + hevcTag + ["-preset", "medium", "-pix_fmt", "yuv420p"] + aac
+            }
             if target != .mkv { codec += ["-movflags", "+faststart"] }
         }
 
@@ -209,8 +250,9 @@ nonisolated struct LibreOfficeEngine: ConversionEngine {
 
     func convert(_ job: ConversionJob, progress: @escaping @Sendable (Double) -> Void) async throws -> [URL] {
         guard let executable else { throw ConversionError.noRoute }
-        // A private profile lets several conversions run at once, and alongside the user's own LibreOffice.
-        let profile = job.workDirectory.appending(path: "profile", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: Self.profilesFolder, withIntermediateDirectories: true)
+        let profile = Self.idleProfiles.withLock { $0.popLast() }
+            ?? Self.profilesFolder.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         let results = job.workDirectory.appending(path: "results", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: results, withIntermediateDirectories: true)
 
@@ -220,7 +262,14 @@ nonisolated struct LibreOfficeEngine: ConversionEngine {
             arguments.append("--infilter=CSV:44/59/9,34,76")
         }
         arguments += ["--convert-to", Self.outputFilter(for: job.target), "--outdir", results.path, job.source.path]
-        try await ProcessRunner.run(executable, arguments, toolName: "LibreOffice")
+        do {
+            try await ProcessRunner.run(executable, arguments, toolName: "LibreOffice")
+        } catch {
+            // A run stopped midway can leave the profile locked or half written.
+            try? FileManager.default.removeItem(at: profile)
+            throw error
+        }
+        Self.idleProfiles.withLock { $0.append(profile) }
 
         let produced = results.appending(path: job.baseName).appendingPathExtension(job.target.id)
         guard FileManager.default.fileExists(atPath: produced.path) else {
@@ -232,6 +281,16 @@ nonisolated struct LibreOfficeEngine: ConversionEngine {
 }
 
 extension LibreOfficeEngine {
+    /// Private profiles let several conversions run at once, alongside the user's own LibreOffice.
+    /// A new profile costs about a second per document, so finished ones are kept and reused;
+    /// each running conversion takes its own, because LibreOffice can't share one between processes.
+    nonisolated static let profilesFolder = URL.cachesDirectory
+        .appending(path: "com.papie.iConvert/LibreOffice", directoryHint: .isDirectory)
+
+    private nonisolated static let idleProfiles = Mutex<[URL]>(
+        (try? FileManager.default.contentsOfDirectory(at: profilesFolder, includingPropertiesForKeys: nil)) ?? []
+    )
+
     nonisolated static func outputFilter(for target: Format) -> String {
         target == .csv ? "csv:Text - txt - csv (StarCalc):44,34,76" : target.id
     }
